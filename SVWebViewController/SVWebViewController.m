@@ -298,9 +298,7 @@
             [dc presentOptionsMenuFromRect:self.view.bounds inView:self.view animated:YES];
         } else {
             UIActivityViewController *activityController = [[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:activities];
-            
-            //a fix to accomodate more complicated view structures
-            [self.view.window.rootViewController presentViewController:activityController animated:YES completion:nil];
+            [self presentViewController:activityController animated:YES completion:nil];
         }
     }
 }
