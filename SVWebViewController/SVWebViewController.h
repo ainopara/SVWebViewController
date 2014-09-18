@@ -6,12 +6,11 @@
 //
 //  https://github.com/samvermette/SVWebViewController
 
-#import "SVModalWebViewController.h"
-
 @interface SVWebViewController : UIViewController
 
-- (id)initWithAddress:(NSString*)urlString;
-- (id)initWithURL:(NSURL*)URL;
-- (id)initWithHTMLString:(NSString*)htmlString andBaseURL:(NSURL*)baseURL;
+- (instancetype)initWithAddress:(NSString*)urlString;
+- (instancetype)initWithURL:(NSURL*)URL;
+- (instancetype)initWithURLRequest:(NSURLRequest *)request;
+- (instancetype)initWithHTMLString:(NSString*)htmlString andBaseURL:(NSURL*)baseURL;
 
 @end

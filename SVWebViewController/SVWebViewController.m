@@ -20,22 +20,9 @@
 @property (nonatomic, strong) UIActivityIndicatorView *activityIndicator;
 
 @property (nonatomic, strong) UIWebView *webView;
-@property (nonatomic, strong) NSURL *URL;
+@property (nonatomic, strong) NSURLRequest *request;
 @property (nonatomic, strong) NSString *htmlString;
-@property  BOOL isRawHTML;
-
-- (id)initWithAddress:(NSString*)urlString;
-- (id)initWithURL:(NSURL*)URL;
-- (id)initWithHTMLString:(NSString*)htmlString andBaseURL:(NSURL*)baseURL;
-- (void)loadURL:(NSURL*)URL;
-
-- (void)updateToolbarItems;
-
-- (void)goBackClicked:(UIBarButtonItem *)sender;
-- (void)goForwardClicked:(UIBarButtonItem *)sender;
-- (void)reloadClicked:(UIBarButtonItem *)sender;
-- (void)stopClicked:(UIBarButtonItem *)sender;
-- (void)actionButtonClicked:(UIBarButtonItem *)sender;
+@property (nonatomic, strong) NSURL *baseURL;
 
 @end
 
@@ -51,33 +38,33 @@
     self.webView.delegate = nil;
 }
 
-- (id)initWithAddress:(NSString *)urlString {
+- (instancetype)initWithAddress:(NSString *)urlString {
     return [self initWithURL:[NSURL URLWithString:urlString]];
 }
 
-- (id)initWithURL:(NSURL*)pageURL {
-    
-    if(self = [super init]) {
-        self.URL = pageURL;
-        self.isRawHTML = NO;
-    }
-    
-    return self;
-}
-
-- (id)initWithHTMLString:(NSString*)htmlString andBaseURL:(NSURL*)baseURL{
+- (instancetype)initWithHTMLString:(NSString*)htmlString andBaseURL:(NSURL*)baseURL{
     
     if(self = [super init]) {
         self.htmlString = htmlString;
-        self.URL = baseURL;
-        self.isRawHTML = YES;
+        self.baseURL = baseURL;
     }
-    
     return self;
 }
 
-- (void)loadURL:(NSURL *)pageURL {
-    [self.webView loadRequest:[NSURLRequest requestWithURL:pageURL]];
+- (instancetype)initWithURL:(NSURL*)pageURL {
+    return [self initWithURLRequest:[NSURLRequest requestWithURL:pageURL]];
+}
+
+- (instancetype)initWithURLRequest:(NSURLRequest*)request {
+    self = [super init];
+    if (self) {
+        self.request = request;
+    }
+    return self;
+}
+
+- (void)loadRequest:(NSURLRequest*)request {
+    [self.webView loadRequest:request];
 }
 
 #pragma mark - View lifecycle
@@ -88,11 +75,11 @@
     self.activityIndicator.frame = self.view.frame;
     [self.view addSubview:self.activityIndicator];
     [self.activityIndicator startAnimating];
-    if(self.URL && !self.isRawHTML){
-        [self loadURL:self.URL];
+    if(self.request && !self.htmlString){
+        [self loadRequest:self.request];
     }
-    else if(self.htmlString && self.isRawHTML){
-        [self.webView loadHTMLString:self.htmlString baseURL:self.URL];
+    else if(self.htmlString){
+        [self.webView loadHTMLString:self.htmlString baseURL:self.baseURL];
     }
 }
 
@@ -118,6 +105,9 @@
 	
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
         [self.navigationController setToolbarHidden:NO animated:animated];
+    }
+    else if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
+        [self.navigationController setToolbarHidden:YES animated:animated];
     }
 }
 
@@ -156,9 +146,9 @@
 - (UIBarButtonItem *)backBarButtonItem {
     if (!_backBarButtonItem) {
         _backBarButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"SVWebViewController.bundle/SVWebViewControllerBack"]
-                                                             style:UIBarButtonItemStylePlain
-                                                            target:self
-                                                            action:@selector(goBackClicked:)];
+                                                              style:UIBarButtonItemStylePlain
+                                                             target:self
+                                                             action:@selector(goBackTapped:)];
 		_backBarButtonItem.width = 18.0f;
     }
     return _backBarButtonItem;
@@ -167,9 +157,9 @@
 - (UIBarButtonItem *)forwardBarButtonItem {
     if (!_forwardBarButtonItem) {
         _forwardBarButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"SVWebViewController.bundle/SVWebViewControllerNext"]
-                                                                style:UIBarButtonItemStylePlain
-                                                               target:self
-                                                               action:@selector(goForwardClicked:)];
+                                                                 style:UIBarButtonItemStylePlain
+                                                                target:self
+                                                                action:@selector(goForwardTapped:)];
 		_forwardBarButtonItem.width = 18.0f;
     }
     return _forwardBarButtonItem;
@@ -177,21 +167,21 @@
 
 - (UIBarButtonItem *)refreshBarButtonItem {
     if (!_refreshBarButtonItem) {
-        _refreshBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemRefresh target:self action:@selector(reloadClicked:)];
+        _refreshBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemRefresh target:self action:@selector(reloadTapped:)];
     }
     return _refreshBarButtonItem;
 }
 
 - (UIBarButtonItem *)stopBarButtonItem {
     if (!_stopBarButtonItem) {
-        _stopBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemStop target:self action:@selector(stopClicked:)];
+        _stopBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemStop target:self action:@selector(stopTapped:)];
     }
     return _stopBarButtonItem;
 }
 
 - (UIBarButtonItem *)actionBarButtonItem {
     if (!_actionBarButtonItem) {
-        _actionBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(actionButtonClicked:)];
+        _actionBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAction target:self action:@selector(actionButtonTapped:)];
     }
     return _actionBarButtonItem;
 }
@@ -201,7 +191,6 @@
 - (void)updateToolbarItems {
     self.backBarButtonItem.enabled = self.self.webView.canGoBack;
     self.forwardBarButtonItem.enabled = self.self.webView.canGoForward;
-    self.actionBarButtonItem.enabled = !self.self.webView.isLoading;
     
     UIBarButtonItem *refreshStopBarButtonItem = self.self.webView.isLoading ? self.stopBarButtonItem : self.refreshBarButtonItem;
     
@@ -211,7 +200,7 @@
     if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
         CGFloat toolbarWidth = 250.0f;
         fixedSpace.width = 35.0f;
-
+        
         NSArray *items = [NSArray arrayWithObjects:
                           fixedSpace,
                           refreshStopBarButtonItem,
@@ -267,7 +256,10 @@
 	[[UIApplication sharedApplication] setNetworkActivityIndicatorVisible:NO];
     [self.activityIndicator stopAnimating];
     
-    self.navigationItem.title = [webView stringByEvaluatingJavaScriptFromString:@"document.title"];
+    if (self.navigationItem.title == nil) {
+        self.navigationItem.title = [webView stringByEvaluatingJavaScriptFromString:@"document.title"];
+    }
+    
     [self updateToolbarItems];
 }
 
@@ -279,34 +271,39 @@
 
 #pragma mark - Target actions
 
-- (void)goBackClicked:(UIBarButtonItem *)sender {
+- (void)goBackTapped:(UIBarButtonItem *)sender {
     [self.webView goBack];
 }
 
-- (void)goForwardClicked:(UIBarButtonItem *)sender {
+- (void)goForwardTapped:(UIBarButtonItem *)sender {
     [self.webView goForward];
 }
 
-- (void)reloadClicked:(UIBarButtonItem *)sender {
+- (void)reloadTapped:(UIBarButtonItem *)sender {
     [self.webView reload];
 }
 
-- (void)stopClicked:(UIBarButtonItem *)sender {
+- (void)stopTapped:(UIBarButtonItem *)sender {
     [self.webView stopLoading];
 	[self updateToolbarItems];
 }
 
-- (void)actionButtonClicked:(id)sender {
-    NSArray *activities = @[[SVWebViewControllerActivitySafari new], [SVWebViewControllerActivityChrome new]];
-    
-    UIActivityViewController *activityController = [[UIActivityViewController alloc] initWithActivityItems:@[self.self.webView.request.URL] applicationActivities:activities];
-    
-    //a fix to accomodate more complicated view structures
-    [self.view.window.rootViewController presentViewController:activityController animated:YES completion:nil];
-
+- (void)actionButtonTapped:(id)sender {
+    NSURL *url = self.webView.request.URL ? self.webView.request.URL : self.request.URL;
+    if (url != nil) {
+        NSArray *activities = @[[SVWebViewControllerActivitySafari new], [SVWebViewControllerActivityChrome new]];
+        
+        if ([[url absoluteString] hasPrefix:@"file:///"]) {
+            UIDocumentInteractionController *dc = [UIDocumentInteractionController interactionControllerWithURL:url];
+            [dc presentOptionsMenuFromRect:self.view.bounds inView:self.view animated:YES];
+        } else {
+            UIActivityViewController *activityController = [[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:activities];
+            [self presentViewController:activityController animated:YES completion:nil];
+        }
+    }
 }
 
-- (void)doneButtonClicked:(id)sender {
+- (void)doneButtonTapped:(id)sùender {
     [self dismissViewControllerAnimated:YES completion:NULL];
 }
 
